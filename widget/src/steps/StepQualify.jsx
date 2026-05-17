@@ -1,13 +1,40 @@
+import { useEffect, useRef } from 'react';
 import { ChoiceGroup } from '../components/ChoiceGroup.jsx';
+import { Field } from '../components/Field.jsx';
 import { Button } from '../components/Button.jsx';
 import { Reveal } from '../components/Reveal.jsx';
 
-const OUTREACH = ['Nothing yet', 'Manual', 'Another tool', 'Agency'];
 const APPOINTMENTS = ['Under 20', '20–50', '50–100', '100+'];
-const SCHEDULER = ['Vagaro', 'Boulevard', 'Mindbody', 'Other', 'None'];
+
+// RIVR-NOTE: Mindbody and Vagaro users typically already have in-platform
+// booking, so they're underrepresented on this funnel. Kept here because some
+// users on those systems still want a better front-of-funnel experience —
+// revisit if conversion data shows they don't fit.
+const SCHEDULERS = [
+  'Google Calendar',
+  'Cal.com',
+  'Apple Calendar',
+  'Vagaro',
+  'Mindbody',
+  'Other',
+  'None',
+];
+
+const TIMELINE = ['Under 5 days', '1–2 weeks', '~1 month', '2 months+'];
 
 export function StepQualify({ value, onChange, onNext }) {
-  const complete = !!value.outreach && !!value.appointments && !!value.scheduler;
+  const otherInputRef = useRef(null);
+  const wantsOther = value.scheduler === 'Other';
+
+  useEffect(() => {
+    if (wantsOther) otherInputRef.current?.focus();
+  }, [wantsOther]);
+
+  const complete =
+    !!value.appointments &&
+    !!value.scheduler &&
+    !!value.timeline &&
+    (!wantsOther || !!(value.scheduler_other || '').trim());
 
   return (
     <section className="step">
@@ -23,17 +50,7 @@ export function StepQualify({ value, onChange, onNext }) {
 
       <Reveal delay={120}>
         <ChoiceGroup
-          label="Your current outreach setup?"
-          name="outreach"
-          options={OUTREACH}
-          value={value.outreach}
-          onChange={(v) => onChange({ outreach: v })}
-        />
-      </Reveal>
-
-      <Reveal delay={210}>
-        <ChoiceGroup
-          label="Appointments booked per month?"
+          label="Appointments per month?"
           name="appointments"
           options={APPOINTMENTS}
           value={value.appointments}
@@ -41,13 +58,38 @@ export function StepQualify({ value, onChange, onNext }) {
         />
       </Reveal>
 
+      <Reveal delay={210}>
+        <div className="choice-block">
+          <ChoiceGroup
+            label="What's your current scheduling calendar?"
+            name="scheduler"
+            options={SCHEDULERS}
+            value={value.scheduler}
+            onChange={(v) => onChange({ scheduler: v })}
+          />
+          {wantsOther && (
+            <div className="choice-extra">
+              <Field
+                ref={otherInputRef}
+                label="Which one?"
+                name="scheduler_other"
+                type="text"
+                value={value.scheduler_other || ''}
+                onChange={(e) => onChange({ scheduler_other: e.target.value })}
+                placeholder="e.g. Square, Acuity, custom"
+              />
+            </div>
+          )}
+        </div>
+      </Reveal>
+
       <Reveal delay={300}>
         <ChoiceGroup
-          label="Scheduling system you use?"
-          name="scheduler"
-          options={SCHEDULER}
-          value={value.scheduler}
-          onChange={(v) => onChange({ scheduler: v })}
+          label="When are you looking to launch?"
+          name="timeline"
+          options={TIMELINE}
+          value={value.timeline}
+          onChange={(v) => onChange({ timeline: v })}
         />
       </Reveal>
 

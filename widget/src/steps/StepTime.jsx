@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../lib/api.js';
-import { dayKey, dayLabelParts, formatTime, userTz } from '../lib/tz.js';
+import { dayKey, userTz } from '../lib/tz.js';
 import { Button } from '../components/Button.jsx';
 import { Reveal } from '../components/Reveal.jsx';
+import { MonthCalendar } from '../components/MonthCalendar.jsx';
+import { WeekStrip } from '../components/WeekStrip.jsx';
+import { SlotPane } from '../components/SlotPane.jsx';
 
 const STATE = {
   loading: 'loading',
@@ -21,6 +24,8 @@ export function StepTime({ qualification, contact, slot, onSlot, onBooked }) {
   const [hold, setHold] = useState(null);
   const [errMsg, setErrMsg] = useState('');
 
+  // Pre-fetch 14 days on mount (and re-fetch on tz change). Day-switching is
+  // instant after this — everything is in memory.
   useEffect(() => {
     let cancelled = false;
     setStatus(STATE.loading);
@@ -47,8 +52,7 @@ export function StepTime({ qualification, contact, slot, onSlot, onBooked }) {
     };
   }, [tz]);
 
-  // Bucket slots by day-in-user-tz.
-  const byDay = useMemo(() => {
+  const slotsByDay = useMemo(() => {
     const m = new Map();
     for (const s of slots) {
       const k = dayKey(s.start, tz);
@@ -58,7 +62,14 @@ export function StepTime({ qualification, contact, slot, onSlot, onBooked }) {
     return m;
   }, [slots, tz]);
 
-  const days = useMemo(() => Array.from(byDay.keys()), [byDay]);
+  const availableDaySet = useMemo(
+    () => new Set(slotsByDay.keys()),
+    [slotsByDay],
+  );
+  const availableDaysSorted = useMemo(
+    () => Array.from(slotsByDay.keys()).sort(),
+    [slotsByDay],
+  );
 
   async function pickSlot(s) {
     setSelected(s);
@@ -69,7 +80,6 @@ export function StepTime({ qualification, contact, slot, onSlot, onBooked }) {
       onSlot(s, h);
     } catch (e) {
       if (e.status === 409) {
-        // Slot got held by someone else in the moment. Reload availability.
         setErrMsg('That slot was just taken. Pick another.');
         setSelected(null);
         const fresh = await api.availability({ days: 14, tz });
@@ -113,14 +123,26 @@ export function StepTime({ qualification, contact, slot, onSlot, onBooked }) {
     }
   }
 
+  function jumpToNextAvailable() {
+    if (!availableDaysSorted.length) return;
+    const next =
+      availableDaysSorted.find((d) => d > (pickedDay || '')) ||
+      availableDaysSorted[0];
+    setPickedDay(next);
+  }
+
+  const currentSlots = pickedDay ? slotsByDay.get(pickedDay) || [] : [];
+
   return (
-    <section className="step">
+    <section className="step time-step">
       <Reveal as="header">
         <div className="text-label-caps eyebrow">Step 3 of 4</div>
         <h1 className="text-display-2 serif-accent">
           Pick <span className="serif">a time</span>.
         </h1>
-        <p className="text-body-lg lede">30 minutes with Thor and Jonas. Times shown in <strong>{tz}</strong>.</p>
+        <p className="text-body-lg lede">
+          30 minutes with Thor and Jonas.
+        </p>
       </Reveal>
 
       {status === STATE.loading && (
@@ -132,7 +154,8 @@ export function StepTime({ qualification, contact, slot, onSlot, onBooked }) {
       {status === STATE.error && (
         <Reveal delay={120}>
           <div className="placeholder placeholder-error">
-            We couldn't load times right now ({errMsg}). Reach us at <a href="mailto:hello@rivr.example">hello@rivr.example</a>.
+            We couldn't load times right now ({errMsg}). Reach us at{' '}
+            <a href="mailto:hello@rivr.example">hello@rivr.example</a>.
           </div>
         </Reveal>
       )}
@@ -140,7 +163,9 @@ export function StepTime({ qualification, contact, slot, onSlot, onBooked }) {
       {status === STATE.empty && (
         <Reveal delay={120}>
           <div className="placeholder">
-            No openings in the next two weeks. Drop us a line at <a href="mailto:hello@rivr.example">hello@rivr.example</a> and we'll find time.
+            No openings in the next two weeks. Drop us a line at{' '}
+            <a href="mailto:hello@rivr.example">hello@rivr.example</a> and we'll
+            find time.
           </div>
         </Reveal>
       )}
@@ -148,90 +173,64 @@ export function StepTime({ qualification, contact, slot, onSlot, onBooked }) {
       {(status === STATE.ready || status === STATE.booking) && (
         <>
           <Reveal delay={120}>
-            <div className="time-picker">
-              <DayColumn days={days} tz={tz} picked={pickedDay} onPick={setPickedDay} />
-              <SlotGrid
-                slots={pickedDay ? byDay.get(pickedDay) || [] : []}
-                tz={tz}
-                selected={selected}
-                onPick={pickSlot}
-              />
+            <div className="picker-shell">
+              <div className="cal-pane">
+                <MonthCalendar
+                  tz={tz}
+                  availableDays={availableDaySet}
+                  selectedDay={pickedDay}
+                  onSelect={(d) => {
+                    setPickedDay(d);
+                    setSelected(null);
+                    setHold(null);
+                  }}
+                />
+              </div>
+              <div className="mobile-strip">
+                <WeekStrip
+                  tz={tz}
+                  days={availableDaysSorted}
+                  selectedDay={pickedDay}
+                  onSelect={(d) => {
+                    setPickedDay(d);
+                    setSelected(null);
+                    setHold(null);
+                  }}
+                />
+              </div>
+              <div className="slot-pane-wrap">
+                <SlotPane
+                  tz={tz}
+                  pickedDay={pickedDay}
+                  slots={currentSlots}
+                  selected={selected}
+                  onPick={pickSlot}
+                  onJumpNext={jumpToNextAvailable}
+                  onChangeTz={setTz}
+                />
+              </div>
             </div>
           </Reveal>
 
           <Reveal delay={240}>
-            <div className="actions confirm-row">
-              <div className="confirm-status">
-                {errMsg ? (
-                  <span className="confirm-error">{errMsg}</span>
-                ) : selected ? (
-                  <span>
-                    Held until <strong>{formatTime(hold?.expires_at, tz)}</strong>
-                  </span>
-                ) : (
-                  <span>Choose any slot above.</span>
-                )}
+            <footer className="picker-footer">
+              <div className="footer-meta">
+                Times in your local zone · 30 minutes · Google Meet
               </div>
-              <Button
-                onClick={confirmBooking}
-                disabled={!selected || !hold || status === STATE.booking}
-                showArrow={status !== STATE.booking}
-              >
-                {status === STATE.booking ? 'Booking…' : 'Confirm booking'}
-              </Button>
-            </div>
+              <div className="footer-cta">
+                {errMsg && <span className="confirm-error">{errMsg}</span>}
+                <Button
+                  onClick={confirmBooking}
+                  disabled={!selected || !hold || status === STATE.booking}
+                  showArrow={status !== STATE.booking}
+                >
+                  {status === STATE.booking ? 'Booking…' : 'Continue'}
+                </Button>
+              </div>
+            </footer>
           </Reveal>
         </>
       )}
     </section>
-  );
-}
-
-function DayColumn({ days, tz, picked, onPick }) {
-  return (
-    <div className="day-col" role="tablist" aria-label="Available dates">
-      {days.map((d) => {
-        const iso = d + 'T12:00:00Z'; // tz-safe pivot for label formatting
-        const { weekday, month, day } = dayLabelParts(iso, tz);
-        const isPicked = d === picked;
-        return (
-          <button
-            key={d}
-            type="button"
-            role="tab"
-            aria-selected={isPicked}
-            className={`day-cell ${isPicked ? 'is-picked' : ''}`}
-            onClick={() => onPick(d)}
-          >
-            <span className="day-weekday">{weekday}</span>
-            <span className="day-day">{day}</span>
-            <span className="day-month">{month}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-function SlotGrid({ slots, tz, selected, onPick }) {
-  if (!slots.length) {
-    return <div className="slot-grid-empty">No slots on this day. Pick another.</div>;
-  }
-  return (
-    <div className="slot-grid">
-      {slots.map((s) => {
-        const isSel = selected && selected.start === s.start;
-        return (
-          <button
-            key={s.start}
-            type="button"
-            className={`slot ${isSel ? 'is-selected' : ''}`}
-            onClick={() => onPick(s)}
-          >
-            {formatTime(s.start, tz)}
-          </button>
-        );
-      })}
-    </div>
   );
 }

@@ -123,7 +123,7 @@ export function StepDetails({ value, onChange, onNext }) {
             onChange={(e) => onChange({ role: e.target.value })}
             onBlur={() => setTouched((t) => ({ ...t, role: true }))}
             optional
-            placeholder="Founder, GM, etc."
+            placeholder="owner, manager, etc."
           />
         </Reveal>
 

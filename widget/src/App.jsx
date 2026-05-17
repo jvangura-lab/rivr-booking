@@ -12,17 +12,37 @@ const TOTAL_STEPS = 4;
 const initialState = {
   step: 1,
   direction: 'forward', // 'forward' | 'back' — drives slide direction
-  qualification: { outreach: '', appointments: '', scheduler: '' },
+  qualification: {
+    appointments: '',
+    scheduler: '',
+    scheduler_other: '',
+    timeline: '',
+  },
   contact: { name: '', email: '', website: '', role: '' },
   slot: null, // { start, end }
   hold: null, // { token, expires_at }
   booking: null, // { booking_id, meet_url, when_display, tz_display, calendar_links }
 };
 
+// Pull only known keys out of a restored object so renamed/removed fields
+// don't leak forward (e.g. legacy `outreach` from prior versions).
+function pick(template, source) {
+  const out = {};
+  for (const k of Object.keys(template)) {
+    out[k] = source && k in source ? source[k] : template[k];
+  }
+  return out;
+}
+
 function reducer(state, action) {
   switch (action.type) {
     case 'restore':
-      return { ...state, ...action.payload };
+      return {
+        ...state,
+        ...action.payload,
+        qualification: pick(initialState.qualification, action.payload.qualification),
+        contact: pick(initialState.contact, action.payload.contact),
+      };
     case 'next':
       return { ...state, step: Math.min(state.step + 1, TOTAL_STEPS), direction: 'forward' };
     case 'back':

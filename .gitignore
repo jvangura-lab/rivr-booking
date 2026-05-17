@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.venv/
+venv/
+.env
+.env.local
+*.egg-info/
+
+# Secrets
+service-account-*.json
+*-credentials.json
+.secrets/
+
+# Node / Vite
+node_modules/
+widget/dist/
+widget/node_modules/
+.vite/
+
+# Build artifacts — staged into the Docker image by deploy.sh
+booking-service/widget_dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+
+# Local dev artifacts
+.claude/

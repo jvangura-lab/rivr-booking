@@ -1,0 +1,16 @@
+Hey {{ first_name }} —
+
+You're on the calendar. {{ when_display }} ({{ tz_display }}).
+
+Join the call: {{ meet_url }}
+
+You'll meet Thor and Jonas. No prep needed — we'll walk through
+how RIVR fits your current setup.
+
+Add to calendar:
+  Google: {{ google_url }}
+  Apple / Outlook (.ics): {{ ics_url }}
+
+Need to reschedule? Just reply to this email.
+
+— RIVR

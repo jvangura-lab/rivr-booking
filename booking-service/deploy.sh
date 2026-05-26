@@ -48,6 +48,7 @@ gcloud run deploy "$SERVICE" \
     --memory=512Mi \
     --cpu=1 \
     --timeout=60 \
+    --set-env-vars="^|^IMPERSONATE_USER=jonas@rivrsystems.com|GUEST_EMAILS=thor@rivrsystems.com" \
     --set-secrets=GOOGLE_SA_KEY_JSON=rivr-booking-sa-key:latest
 
 echo "▸ Done."

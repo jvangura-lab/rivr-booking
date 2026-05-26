@@ -9,6 +9,7 @@ import logging
 import os
 
 from flask import Flask, send_from_directory
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
 from lib.logging_setup import configure as configure_logging
@@ -17,7 +18,15 @@ from routes import availability, book, health, hold, ics
 configure_logging(config.LOG_LEVEL)
 log = logging.getLogger(__name__)
 
+if not config.IMPERSONATE_USER:
+    raise RuntimeError(
+        "IMPERSONATE_USER is required (sender of calendar invites + confirmation emails, "
+        "and organizer on ICS exports). Set it even in FAKE_CALENDAR mode."
+    )
+
 app = Flask(__name__, static_folder=None)
+# Trust Cloud Run's proxy headers so url_for(_external=True) emits https.
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_for=1)
 
 # API blueprints
 app.register_blueprint(health.bp)

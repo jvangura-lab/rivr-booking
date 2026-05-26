@@ -35,6 +35,6 @@ def configure(level: str = "INFO") -> None:
     root.setLevel(level)
 
 
-def log_event(logger: logging.Logger, level: int, msg: str, **fields) -> None:
+def log_event(logger: logging.Logger, level: int, msg: str, *, exc_info: bool = False, **fields) -> None:
     """Emit a structured log line with arbitrary fields attached."""
-    logger.log(level, msg, extra={"extras": fields})
+    logger.log(level, msg, extra={"extras": fields}, exc_info=exc_info)

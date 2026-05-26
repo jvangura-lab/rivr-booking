@@ -148,9 +148,17 @@ def book():
                 ics_url=ics_url,
                 subject_suffix=subject_suffix,
             )
-        except Exception:
-            log.exception("book.email_failed")
-            # Don't fail the booking — event is already created. RIVR-NOTE: surface in ops alert.
+        except Exception as exc:
+            # Don't fail the booking — event is already created.
+            log_event(
+                log, logging.ERROR, "book.email_failed",
+                booking_id=event_id,
+                email_hash=_hash_email(email),
+                slot_start=to_z(slot_start),
+                error_type=type(exc).__name__,
+                error=str(exc),
+                exc_info=True,
+            )
 
     duration_ms = int((datetime.now(timezone.utc) - started).total_seconds() * 1000)
     log_event(
